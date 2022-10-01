@@ -12,3 +12,8 @@ if (CMAKE_CXX_COMPILER_ID MATCHES Clang)
 endif ()
 
 add_executable(${LAB_TARGET_PREFIX}task3_4 task3_4.cpp)
+
+add_subdirectory(matrix)
+
+add_executable(${LAB_TARGET_PREFIX}task5 task5.cpp)
+target_link_libraries(${LAB_TARGET_PREFIX}task5 PRIVATE ${LAB_TARGET_PREFIX}matrix)
