@@ -105,7 +105,7 @@ void RunTask4() {
     double result =
         BENCHMARK(1, omp_get_wtime, { lab1::SumUp<uint32_t>(values); });
 
-    std::cout << "[Absolute] " << result << " nanoseconds" << '\n';
+    std::cout << "[Absolute] " << result << " seconds" << '\n';
   };
 
   auto testSequenceWithSizeRelative = [](size_t arraySize) {
@@ -121,8 +121,12 @@ void RunTask4() {
     do {
       DWORD result =
           BENCHMARK(1, GetTickCount, { lab1::SumUp<uint32_t>(values); });
-      remainingTime -= result;
       ++cycles;
+      if (remainingTime > result) {  // would underflow otherwise
+        remainingTime -= result;
+      } else {
+        break;
+      }
     } while (remainingTime > 0);
 
     std::cout << "[Relative] function runs " << cycles
