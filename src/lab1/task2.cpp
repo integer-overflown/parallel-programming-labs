@@ -108,7 +108,7 @@ int main() {
 
 #ifdef LAB1_HAVE_OMP
   LAB1_TASK2_MEASURE_TIME_FUNCTION_PRECISION(omp_get_wtime, "omp_get_wtime",
-                                             "nanoseconds");
+                                             "seconds");
 #else
   std::cerr << "Skipping OMP test: reason: not supported\n";
 #endif
