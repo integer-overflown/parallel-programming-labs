@@ -6,6 +6,7 @@
 #include <iostream>
 #include <iterator>
 #include <memory>
+#include <typeinfo>
 #include <variant>
 
 #include "matrix.h"
@@ -21,6 +22,8 @@
     }                                                           \
     return val;                                                 \
   }())
+
+#define LAB1_TASK5_RUN_BENCHMARKS_PER_TYPE 0
 
 namespace lab1 {
 namespace {
@@ -125,22 +128,22 @@ std::variant<uint64_t, ParseError> ParseUInt64(std::string_view string) {
   return value;
 }
 
-void BenchmarkNoObjects(size_t size)
-{
+template <typename T>
+void BenchmarkNoObjects(size_t size) {
   constexpr auto label = "(no objects) ";
 
-  lab1::Array2DAutoPtr<float> a =
-      lab1::Allocate2DArray<float>(size, size, lab1::uninitialized_t{});
+  lab1::Array2DAutoPtr<T> a =
+      lab1::Allocate2DArray<T>(size, size, lab1::uninitialized_t{});
   lab1::Generate2D(
-      a, size, size, +[](ptrdiff_t i, ptrdiff_t j) { return float(i + j); });
+      a, size, size, +[](ptrdiff_t i, ptrdiff_t j) { return T(i + j); });
 
-  lab1::Array2DAutoPtr<float> b =
-      lab1::Allocate2DArray<float>(size, size, lab1::uninitialized_t{});
+  lab1::Array2DAutoPtr<T> b =
+      lab1::Allocate2DArray<T>(size, size, lab1::uninitialized_t{});
   lab1::Generate2D(
-      b, size, size, +[](ptrdiff_t i, ptrdiff_t j) { return float(i == j); });
+      b, size, size, +[](ptrdiff_t i, ptrdiff_t j) { return T(i == j); });
 
-  lab1::Array2DAutoPtr<float> result =
-      lab1::Allocate2DArray<float>(size, size, lab1::uninitialized_t{});
+  lab1::Array2DAutoPtr<T> result =
+      lab1::Allocate2DArray<T>(size, size, lab1::uninitialized_t{});
 
   std::cout << label << "Starting benchmark...\n";
 
@@ -151,18 +154,16 @@ void BenchmarkNoObjects(size_t size)
   std::cout << label << "time taken: " << execTime << " seconds\n";
 }
 
-void BenchmarkUsingObjects(size_t size)
-{
+template <typename T>
+void BenchmarkUsingObjects(size_t size) {
   constexpr auto label = "(using objects) ";
 
-  Matrix<float> a(size, size, [](ptrdiff_t i, ptrdiff_t j) { return float(i + j); });
-  Matrix<float> b(size, size, [](ptrdiff_t i, ptrdiff_t j) { return float(i == j); });
+  Matrix<T> a(size, size, [](ptrdiff_t i, ptrdiff_t j) { return T(i + j); });
+  Matrix<T> b(size, size, [](ptrdiff_t i, ptrdiff_t j) { return T(i == j); });
 
   std::cout << label << "Starting benchmark...\n";
 
-  double execTime = BENCHMARK(1, omp_get_wtime, {
-    (void) a.multiply(b);
-  });
+  double execTime = BENCHMARK(1, omp_get_wtime, { (void)a.multiply(b); });
 
   std::cout << label << "time taken: " << execTime << " seconds\n";
 }
@@ -171,6 +172,8 @@ void BenchmarkUsingObjects(size_t size)
 }  // namespace lab1
 
 int main(int argc, char *argv[]) {
+  constexpr auto delim = "\n------------------------------------------------\n";
+
   if (argc != 2) {
     std::cerr << "usage: " << (argc == 1 ? argv[0] : "<executable>") << ' '
               << "[matrix size]\n";
@@ -194,7 +197,19 @@ int main(int argc, char *argv[]) {
 
   std::cout << "Running benchmarks on matrices with size " << size << '\n';
 
-  lab1::BenchmarkNoObjects(size);
+  lab1::BenchmarkNoObjects<float>(size);
 
-  lab1::BenchmarkUsingObjects(size);
+  lab1::BenchmarkUsingObjects<float>(size);
+
+#if LAB1_TASK5_RUN_BENCHMARKS_PER_TYPE
+  auto &&fun = [size]<typename... Args>() {
+    ((std::cout << "Running benchmark for type " << typeid(Args).name()
+                << delim,
+      lab1::BenchmarkNoObjects<Args>(size),
+      lab1::BenchmarkUsingObjects<Args>(size), std::cout << delim),
+     ...);
+  };
+
+  fun.template operator()<float, double, int8_t, int16_t, int32_t, int64_t>();
+#endif
 }
