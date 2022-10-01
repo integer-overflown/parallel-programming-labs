@@ -155,8 +155,8 @@ void BenchmarkUsingObjects(size_t size)
 {
   constexpr auto label = "(using objects) ";
 
-  Matrix a(size, size, [](size_t i, size_t j) { return float(i + j); });
-  Matrix b(size, size, [](size_t i, size_t j) { return float(i == j); });
+  Matrix<float> a(size, size, [](ptrdiff_t i, ptrdiff_t j) { return float(i + j); });
+  Matrix<float> b(size, size, [](ptrdiff_t i, ptrdiff_t j) { return float(i == j); });
 
   std::cout << label << "Starting benchmark...\n";
 
