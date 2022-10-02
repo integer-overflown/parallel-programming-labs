@@ -67,7 +67,7 @@ uint64_t GetPerformanceCounterValue() {
 
 template <typename Type, size_t Size>
 std::array<Type, Size> GenerateAscendingSequence() {
-  std::array<Type, Size> values;
+  std::array<Type, Size> values{};
   std::ranges::generate(values.begin(), values.end(),
                         [n = uint32_t(0)]() mutable { return n++; });
   return values;
@@ -121,12 +121,12 @@ void RunTask4() {
     do {
       DWORD result =
           BENCHMARK(1, GetTickCount, { lab1::SumUp<uint32_t>(values); });
-      ++cycles;
       if (remainingTime > result) {  // would underflow otherwise
         remainingTime -= result;
       } else {
         break;
       }
+      ++cycles;
     } while (remainingTime > 0);
 
     std::cout << "[Relative] function runs " << cycles
