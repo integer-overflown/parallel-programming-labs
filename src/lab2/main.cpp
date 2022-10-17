@@ -51,6 +51,14 @@ int CountPositiveNumbers(std::span<const int> numbers) {
   return total;
 }
 
+template <typename T, size_t Extent>
+  requires(std::is_floating_point_v<T>)
+void RoundAll(std::span<T, Extent> array) {
+  std::transform(array.begin(), array.end(), array.begin(),
+                 [](T &val) { return std::round(val); });
+}
+
+
 }  // namespace unoptimized
 
 namespace optimized {
@@ -62,6 +70,15 @@ int CountPositiveNumbers(std::span<const int> numbers) {
   }
   return total;
 }
+
+template <typename T, size_t Extent>
+  requires(std::is_floating_point_v<T>)
+void RoundAll(std::span<T, Extent> array) {
+  std::transform(array.begin(), array.end(), array.begin(),
+                 [](T val) { return int64_t(val + T{0.5}); });
+}
+
+
 }  // namespace optimized
 
 void BubbleSort(std::span<int> array) {
@@ -79,13 +96,6 @@ void BubbleSort(std::span<int> array) {
     }
 
   } while (swapped);
-}
-
-template <typename T, size_t Extent>
-  requires(std::is_floating_point_v<T>)
-void RoundAll(std::span<T, Extent> array) {
-  std::transform(array.begin(), array.end(), array.begin(),
-                 [](T &val) { return std::round(val); });
 }
 
 template <typename Container>
@@ -140,10 +150,16 @@ int main() {
 
   std::array handfulOfDoubles{1.3, 2.1, 6.3, 2.2};
   {
-    lab2::Measurement m("lab2::RoundAll");
-    lab2::RoundAll(std::span{handfulOfDoubles});
+    std::array test(handfulOfDoubles);
+    lab2::Measurement m("lab2::unoptimized::RoundAll");
+    lab2::unoptimized::RoundAll(std::span{test});
   }
-  lab2::Print(handfulOfDoubles);
+
+  {
+    std::array test(handfulOfDoubles);
+    lab2::Measurement m("lab2::optimized::RoundAll");
+    lab2::optimized::RoundAll(std::span{test});
+  }
 
   std::array lhs{5, 0, 10, 6};
   std::array rhs{1, 2, 4};
