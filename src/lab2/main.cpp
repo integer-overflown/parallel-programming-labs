@@ -65,7 +65,8 @@ namespace optimized {
 int CountPositiveNumbers(std::span<const int> numbers) {
   int total{};
   for (int value : numbers) {
-    total += !bool(static_cast<unsigned int>(value) &
+    // this is going to fail for std::numeric_limits<int>::min(), because of -1
+    total += !bool(static_cast<unsigned int>(value - 1) &
               ~std::numeric_limits<int>::max());
   }
   return total;
