@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include <initializer_list>
 #include <iostream>
+#include <limits>
 #include <span>
 #include <vector>
 
@@ -38,6 +39,8 @@ class Measurement {
   ElapsedTimer _timer;
 };
 
+namespace unoptimized {
+
 int CountPositiveNumbers(std::span<const int> numbers) {
   int total{};
   for (int value : numbers) {
@@ -47,6 +50,19 @@ int CountPositiveNumbers(std::span<const int> numbers) {
   }
   return total;
 }
+
+}  // namespace unoptimized
+
+namespace optimized {
+int CountPositiveNumbers(std::span<const int> numbers) {
+  int total{};
+  for (int value : numbers) {
+    total += !bool(static_cast<unsigned int>(value) &
+              ~std::numeric_limits<int>::max());
+  }
+  return total;
+}
+}  // namespace optimized
 
 void BubbleSort(std::span<int> array) {
   const size_t size = std::size(array);
@@ -98,7 +114,23 @@ std::vector<T> polynomialMultiply(std::span<T, Extent1> lhs,
 
 int main() {
   std::array numbers{1, 2, -1, -2, 0, 2000};
-  std::cout << lab2::CountPositiveNumbers(numbers) << '\n';
+  int numPositive;
+
+  {
+    lab2::Measurement m("unoptimized::CountPositiveNumbers");
+    numPositive = lab2::unoptimized::CountPositiveNumbers(numbers);
+  }
+
+  std::cout << "unoptimized::CountPositiveNumbers" << ':' << ' ' << numPositive
+            << '\n';
+
+  {
+    lab2::Measurement m("optimized::CountPositiveNumbers");
+    numPositive = lab2::optimized::CountPositiveNumbers(numbers);
+  }
+
+  std::cout << "optimized::CountPositiveNumbers" << ':' << ' ' << numPositive
+            << '\n';
 
   {
     lab2::Measurement m("lab2::BubbleSort");
