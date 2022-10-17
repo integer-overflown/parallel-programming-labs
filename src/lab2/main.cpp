@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cmath>
 #include <cstdlib>
 #include <initializer_list>
@@ -9,6 +10,33 @@
 
 namespace lab2 {
 namespace {
+
+class ElapsedTimer {
+  using ClockType = std::chrono::high_resolution_clock;
+
+ public:
+  ElapsedTimer() : _startTime(ClockType::now()) {}
+
+  [[nodiscard]] std::chrono::nanoseconds elapsed() const {
+    return ClockType::now() - _startTime;
+  }
+
+ private:
+  ClockType::time_point _startTime;
+};
+
+class Measurement {
+ public:
+  explicit Measurement(std::string label) : _label(std::move(label)) {}
+
+  ~Measurement() {
+    std::cout << _label << ':' << " time taken " << _timer.elapsed() << '\n';
+  }
+
+ private:
+  std::string _label;
+  ElapsedTimer _timer;
+};
 
 int CountPositiveNumbers(std::span<const int> numbers) {
   int total{};
@@ -72,16 +100,25 @@ int main() {
   std::array numbers{1, 2, -1, -2, 0, 2000};
   std::cout << lab2::CountPositiveNumbers(numbers) << '\n';
 
-  lab2::BubbleSort(numbers);
+  {
+    lab2::Measurement m("lab2::BubbleSort");
+    lab2::BubbleSort(numbers);
+  }
   lab2::Print(numbers);
 
   std::array handfulOfDoubles{1.3, 2.1, 6.3, 2.2};
-  lab2::RoundAll(std::span{handfulOfDoubles});
+  {
+    lab2::Measurement m("lab2::RoundAll");
+    lab2::RoundAll(std::span{handfulOfDoubles});
+  }
   lab2::Print(handfulOfDoubles);
 
   std::array lhs{5, 0, 10, 6};
   std::array rhs{1, 2, 4};
-  lab2::Print(lab2::polynomialMultiply(std::span{lhs}, std::span{rhs}));
+  {
+    lab2::Measurement m("lab2::polynomialMultiply");
+    lab2::polynomialMultiply(std::span{lhs}, std::span{rhs});
+  }
 
   return EXIT_SUCCESS;
 }
