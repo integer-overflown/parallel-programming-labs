@@ -42,6 +42,18 @@ class Measurement {
 
 namespace unoptimized {
 
+void BubbleSort(std::span<int> array) {
+  const size_t size = std::size(array);
+
+  for (size_t p = size - 1; p >= 1; p--) {
+    for (size_t i = 0; i < p; i++) {
+      if (array[i] > array[i + 1]) {
+        std::swap(array[i], array[i + 1]);
+      }
+    }
+  }
+}
+
 int CountPositiveNumbers(std::span<const int> numbers) {
   int total{};
   for (int value : numbers) {
@@ -62,6 +74,19 @@ void RoundAll(std::span<T, Extent> array) {
 }  // namespace unoptimized
 
 namespace optimized {
+
+void BubbleSort(std::span<int> array) {
+  const size_t size = std::size(array);
+
+  for (int p = 1; p < size; p++) {
+    for (int i = p - 1; i >= 0; i--) {
+      if (array[i] > array[i + 1]) {
+        std::swap(array[i], array[i + 1]);
+      }
+    }
+  }
+}
+
 int CountPositiveNumbers(std::span<const int> numbers) {
   int total{};
   for (int value : numbers) {
@@ -80,23 +105,6 @@ void RoundAll(std::span<T, Extent> array) {
 }
 
 }  // namespace optimized
-
-void BubbleSort(std::span<int> array) {
-  const size_t size = std::size(array);
-  bool swapped;
-
-  do {
-    swapped = false;
-
-    for (size_t i = 0; i < size - 1; i++) {
-      if (array[i] > array[i + 1]) {
-        std::swap(array[i], array[i + 1]);
-        swapped = true;
-      }
-    }
-
-  } while (swapped);
-}
 
 template <typename Container>
 void Print(const Container &container) {
@@ -123,7 +131,7 @@ std::vector<T> polynomialMultiply(std::span<T, Extent1> lhs,
 }  // namespace lab2
 
 int main() {
-  std::array numbers{1, -2, -1, -2, 0, 2000, -20, 23, -23};
+  const std::array numbers{1, -2, -1, -2, 0, 2000, -20, 23, -23};
   int numPositive;
 
   {
@@ -143,8 +151,16 @@ int main() {
             << '\n';
 
   {
-    lab2::Measurement m("lab2::BubbleSort");
-    lab2::BubbleSort(numbers);
+    std::array test(numbers);
+    lab2::Measurement m("unoptimized::BubbleSort");
+    lab2::unoptimized::BubbleSort(test);
+  }
+  lab2::Print(numbers);
+
+  {
+    std::array test(numbers);
+    lab2::Measurement m("optimized::BubbleSort");
+    lab2::optimized::BubbleSort(test);
   }
   lab2::Print(numbers);
 
