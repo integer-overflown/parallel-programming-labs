@@ -31,7 +31,8 @@ class Measurement {
   explicit Measurement(std::string label) : _label(std::move(label)) {}
 
   ~Measurement() {
-    std::cout << _label << ':' << " time taken " << _timer.elapsed() << '\n';
+    std::chrono::nanoseconds elapsed = _timer.elapsed();
+    std::cout << _label << ':' << " time taken " << elapsed << '\n';
   }
 
  private:
