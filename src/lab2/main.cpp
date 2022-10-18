@@ -59,7 +59,6 @@ void RoundAll(std::span<T, Extent> array) {
                  [](T &val) { return std::round(val); });
 }
 
-
 }  // namespace unoptimized
 
 namespace optimized {
@@ -68,7 +67,7 @@ int CountPositiveNumbers(std::span<const int> numbers) {
   for (int value : numbers) {
     // this is going to fail for std::numeric_limits<int>::min(), because of -1
     total += !bool(static_cast<unsigned int>(value - 1) &
-              ~std::numeric_limits<int>::max());
+                   ~std::numeric_limits<int>::max());
   }
   return total;
 }
@@ -79,7 +78,6 @@ void RoundAll(std::span<T, Extent> array) {
   std::transform(array.begin(), array.end(), array.begin(),
                  [](T val) { return int64_t(val + T{0.5}); });
 }
-
 
 }  // namespace optimized
 
@@ -125,7 +123,7 @@ std::vector<T> polynomialMultiply(std::span<T, Extent1> lhs,
 }  // namespace lab2
 
 int main() {
-  std::array numbers{1, 2, -1, -2, 0, 2000};
+  std::array numbers{1, -2, -1, -2, 0, 2000, -20, 23, -23};
   int numPositive;
 
   {
