@@ -71,6 +71,20 @@ void RoundAll(std::span<T, Extent> array) {
                  [](T &val) { return std::round(val); });
 }
 
+template <typename T, size_t Extent1, size_t Extent2>
+std::vector<T> PolynomialMultiply(std::span<T, Extent1> lhs,
+                                  std::span<T, Extent2> rhs) {
+  std::vector<T> result(std::size(lhs) + std::size(rhs) - 1);
+
+  for (ptrdiff_t i = 0; i < std::size(lhs); ++i) {
+    for (ptrdiff_t j = 0; j < std::size(rhs); ++j) {
+      result[i + j] += lhs[i] * rhs[j];
+    }
+  }
+
+  return result;
+}
+
 }  // namespace unoptimized
 
 namespace optimized {
@@ -104,6 +118,27 @@ void RoundAll(std::span<T, Extent> array) {
                  [](T val) { return int64_t(val + T{0.5}); });
 }
 
+template <typename T, size_t Extent>
+std::vector<T> PolynomialMultiply(std::span<T, Extent> lhs,
+                                  std::span<T, Extent> rhs) {
+  const size_t size = std::size(lhs);
+  std::vector<T> result(2 * size);
+
+  for (size_t j = 0; j < size; j++) {
+    if (rhs[j] != 0) {
+      auto pz = result.begin() + j;
+
+      if (rhs[j] == 1) {
+        for (size_t i = 0; i < size; i++) pz[i] += lhs[i];
+      } else {
+        for (size_t i = 0; i < size; i++) pz[i] -= lhs[i];
+      }
+    }
+  }
+
+  return result;
+}
+
 }  // namespace optimized
 
 template <typename Container>
@@ -111,20 +146,6 @@ void Print(const Container &container) {
   std::for_each(begin(container), end(container),
                 [](auto item) { std::cout << item << ' '; });
   std::cout << '\n';
-}
-
-template <typename T, size_t Extent1, size_t Extent2>
-std::vector<T> polynomialMultiply(std::span<T, Extent1> lhs,
-                                  std::span<T, Extent2> rhs) {
-  std::vector<T> result(std::size(lhs) + std::size(rhs) - 1);
-
-  for (ptrdiff_t i = 0; i < std::size(lhs); ++i) {
-    for (ptrdiff_t j = 0; j < std::size(rhs); ++j) {
-      result[i + j] += lhs[i] * rhs[j];
-    }
-  }
-
-  return result;
 }
 
 }  // namespace
@@ -177,11 +198,17 @@ int main() {
     lab2::optimized::RoundAll(std::span{test});
   }
 
-  std::array lhs{5, 0, 10, 6};
-  std::array rhs{1, 2, 4};
+  std::array lhs{5, 0, 10, 1, 3, 2, 1, 3, 12, 21, 33, 11};
+  std::array rhs{0, -1, 1, 0, -1, 1, 0, -1, 1, 0, -1, 1};
+
   {
-    lab2::Measurement m("lab2::polynomialMultiply");
-    lab2::polynomialMultiply(std::span{lhs}, std::span{rhs});
+    lab2::Measurement m("unoptimized::PolynomialMultiply");
+    lab2::unoptimized::PolynomialMultiply(std::span{lhs}, std::span{rhs});
+  }
+
+  {
+    lab2::Measurement m("optimized::PolynomialMultiply");
+    lab2::optimized::PolynomialMultiply(std::span{lhs}, std::span{rhs});
   }
 
   return EXIT_SUCCESS;
