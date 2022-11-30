@@ -1,11 +1,15 @@
 #include <intrin.h>
-#include <omp.h>
 
 #include <chrono>
 #include <iostream>
+#include <memory>
 #include <random>
 
 #include "matrix.h"
+
+#ifndef _OPENMP
+#error "OpenMP must be enabled"
+#endif
 
 namespace lab5 {
 class ElapsedTimer {
@@ -152,83 +156,75 @@ void BitMatrixMultiplyPar(const bool *lhs, const bool *rhs, bool *result,
 }  // namespace lab5
 
 int main() {
-#ifndef _OPENMP
-#error "OpenMP must be enabled"
-#endif
-
   constexpr auto dim = 1000;
   constexpr auto size = 1000 * 1000;
-  auto arrA = new double[size];
+
   std::uniform_int_distribution dist(0, 1000);
   std::mt19937 generator(std::random_device{}());
 
-  std::generate(arrA, arrA + size, [&] { return dist(generator); });
+  auto generateRandomDouble = [&] { return dist(generator); };
+  auto generateRandomBool = [&] { return bool(dist(generator) & 1); };
 
-  auto arrB = new double[size];
+  auto arrA = std::make_unique<double[]>(size);
+  std::generate(arrA.get(), arrA.get() + size, generateRandomDouble);
 
-  std::generate(arrB, arrB + size, [&] { return dist(generator); });
+  auto arrB = std::make_unique<double[]>(size);
+  std::generate(arrB.get(), arrB.get() + size, generateRandomDouble);
 
-  auto arrResult = new double[size];
+  auto arrResult = std::make_unique<double[]>(size);
 
-  auto bitA = new bool[size];
-  std::generate(bitA, bitA + size, [&] { return bool(dist(generator) & 1); });
+  auto bitA = std::make_unique<bool[]>(size);
+  std::generate(bitA.get(), bitA.get() + size, generateRandomBool);
 
-  auto bitB = new bool[size];
-  std::generate(bitB, bitB + size, [&] { return bool(dist(generator) & 1); });
+  auto bitB = std::make_unique<bool[]>(size);
+  std::generate(bitB.get(), bitB.get() + size, generateRandomBool);
 
-  auto bitResult = new bool[size];
+  auto bitResult = std::make_unique<bool[]>(size);
 
   {
     lab5::Measurement m("ArrayMatrix: sequential addition");
-    lab5::MatrixAddSeq(arrA, arrB, arrResult, dim);
+    lab5::MatrixAddSeq(arrA.get(), arrB.get(), arrResult.get(), dim);
   }
 
   {
     lab5::Measurement m("ArrayMatrix: parallel addition");
-    lab5::MatrixAddPar(arrA, arrB, arrResult, dim);
+    lab5::MatrixAddPar(arrA.get(), arrB.get(), arrResult.get(), dim);
   }
 
   {
     lab5::Measurement m("ArrayMatrix: sequential multiplication");
-    lab5::MatrixMultiplySeq(arrA, arrB, arrResult, dim);
+    lab5::MatrixMultiplySeq(arrA.get(), arrB.get(), arrResult.get(), dim);
   }
 
   {
     lab5::Measurement m("ArrayMatrix: parallel multiplication");
-    lab5::MatrixMultiplyPar(arrA, arrB, arrResult, dim);
+    lab5::MatrixMultiplyPar(arrA.get(), arrB.get(), arrResult.get(), dim);
   }
 
   {
     lab5::Measurement m("BitMatrix: sequential addition");
-    lab5::BitMatrixAddSeq(bitA, bitB, bitResult, dim);
+    lab5::BitMatrixAddSeq(bitA.get(), bitB.get(), bitResult.get(), dim);
   }
 
   {
     lab5::Measurement m("BitMatrix: parallel addition");
-    lab5::BitMatrixAddPar(bitA, bitB, bitResult, dim);
+    lab5::BitMatrixAddPar(bitA.get(), bitB.get(), bitResult.get(), dim);
   }
 
   {
     lab5::Measurement m("BitMatrix: sequential multiplication");
-    lab5::BitMatrixMultiplySeq(bitA, bitB, bitResult, dim);
+    lab5::BitMatrixMultiplySeq(bitA.get(), bitB.get(), bitResult.get(), dim);
   }
 
   {
     lab5::Measurement m("BitMatrix: parallel multiplication");
-    lab5::BitMatrixMultiplyPar(bitA, bitB, bitResult, dim);
+    lab5::BitMatrixMultiplyPar(bitA.get(), bitB.get(), bitResult.get(), dim);
   }
 
   std::cout << "\n\n----- SIMD commands ------\n\n";
 
   {
     lab5::Measurement m("ArrayMatrix: SIMD-powered addition");
-    lab5::MatrixAddSeqSimd(arrA, arrB, arrResult, dim);
+    lab5::MatrixAddSeqSimd(arrA.get(), arrB.get(), arrResult.get(), dim);
   }
-
-  delete[] bitResult;
-  delete[] bitB;
-  delete[] bitA;
-  delete[] arrResult;
-  delete[] arrB;
-  delete[] arrA;
 }
