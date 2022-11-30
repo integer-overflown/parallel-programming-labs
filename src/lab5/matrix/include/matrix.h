@@ -129,6 +129,14 @@ class MatrixBase {
     return static_cast<const Impl *>(this)->doAddPar(other);
   }
 
+  [[nodiscard]] size_t rows() const {
+    return static_cast<const Impl *>(this)->numRows();
+  }
+
+  [[nodiscard]] size_t cols() const {
+    return static_cast<const Impl *>(this)->numColumns();
+  }
+
   friend Impl operator+(const Impl &a, const Impl &b) {
     return a.add(b, std::execution::seq);
   }
@@ -153,8 +161,6 @@ class Matrix : public MatrixBase<Matrix<T>> {
   using EntryGenerator = T (*)(ptrdiff_t, ptrdiff_t);
   Matrix(size_t rows, size_t cols, EntryGenerator entryGenerator = nullptr);
   Matrix(std::initializer_list<std::initializer_list<T>> init);
-  [[nodiscard]] size_t rows() const;
-  [[nodiscard]] size_t cols() const;
   const T &operator()(size_t row, size_t col) const;
   T &operator()(size_t row, size_t col);
 
@@ -174,6 +180,10 @@ class Matrix : public MatrixBase<Matrix<T>> {
   [[nodiscard]] Matrix doAddSeq(const Matrix &other) const;
 
   [[nodiscard]] Matrix doAddPar(const Matrix &other) const;
+
+  [[nodiscard]] size_t numRows() const;
+
+  [[nodiscard]] size_t numColumns() const;
 
   std::vector<std::vector<T>> _matrix;
 };

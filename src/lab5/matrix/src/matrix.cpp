@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <cassert>
-#include <iomanip>
 #include <stdexcept>
 
 namespace lab5 {
@@ -43,12 +42,12 @@ Matrix<T>::Matrix(std::initializer_list<std::initializer_list<T>> init)
 }
 
 template <typename T>
-size_t Matrix<T>::rows() const {
+size_t Matrix<T>::numRows() const {
   return _matrix.size();
 }
 
 template <typename T>
-size_t Matrix<T>::cols() const {
+size_t Matrix<T>::numColumns() const {
   return _matrix[0].size();
 }
 
@@ -64,16 +63,16 @@ T &Matrix<T>::operator()(size_t row, size_t col) {
 
 template <typename T>
 Matrix<T> Matrix<T>::doMultiplySeq(const Matrix<T> &other) const {
-  if (cols() != other.rows()) {
+  if (numColumns() != other.numRows()) {
     throw std::invalid_argument("matrices are of invalid dimensions");
   }
 
-  Matrix result(rows(), other.cols());
+  Matrix result(numRows(), other.numColumns());
 
-  for (size_t i = 0; i < rows(); ++i) {
-    for (size_t j = 0; j < other.cols(); ++j) {
+  for (size_t i = 0; i < numRows(); ++i) {
+    for (size_t j = 0; j < other.numColumns(); ++j) {
       T total{};
-      for (size_t k = 0; k < cols(); ++k) {
+      for (size_t k = 0; k < numColumns(); ++k) {
         total += (*this)(i, k) * other(k, j);
       }
       result(i, j) = total;
@@ -90,15 +89,15 @@ Matrix<T> Matrix<T>::doMultiplyPar(const Matrix<T> &other) const {
 
 template <typename T>
 Matrix<T> Matrix<T>::doAddSeq(const Matrix &other) const {
-  if (!(rows() == other.rows() && cols() == other.cols())) {
+  if (!(numRows() == other.numRows() && numColumns() == other.cols())) {
     throw std::invalid_argument(
         "Only matrices of the same dimensions can be added");
   }
 
   Matrix<T> result(*this);
 
-  for (size_t i = 0; i < rows(); ++i) {
-    for (size_t j = 0; j < cols(); ++j) {
+  for (size_t i = 0; i < numRows(); ++i) {
+    for (size_t j = 0; j < numColumns(); ++j) {
       result(i, j) += other(i, j);
     }
   }
@@ -108,7 +107,7 @@ Matrix<T> Matrix<T>::doAddSeq(const Matrix &other) const {
 
 template <typename T>
 Matrix<T> Matrix<T>::doAddPar(const Matrix &other) const {
-  if (!(rows() == other.rows() && cols() == other.cols())) {
+  if (!(numRows() == other.numRows() && numColumns() == other.cols())) {
     throw std::invalid_argument(
         "Only matrices of the same dimensions can be added");
   }
@@ -116,8 +115,8 @@ Matrix<T> Matrix<T>::doAddPar(const Matrix &other) const {
   Matrix<T> result(*this);
 
 #pragma omp parallel for
-  for (size_t i = 0; i < rows(); ++i) {
-    for (size_t j = 0; j < cols(); ++j) {
+  for (size_t i = 0; i < numRows(); ++i) {
+    for (size_t j = 0; j < numColumns(); ++j) {
       result(i, j) += other(i, j);
     }
   }
@@ -128,13 +127,13 @@ Matrix<T> Matrix<T>::doAddPar(const Matrix &other) const {
 template <typename T>
 std::pair<MatrixRowIterator<T>, MatrixRowIterator<T>> Matrix<T>::rowEntries(
     size_t index) const {
-  return {{*this, index}, {*this, index, cols()}};
+  return {{*this, index}, {*this, index, numColumns()}};
 }
 
 template <typename T>
 std::pair<MatrixColumnIterator<T>, MatrixColumnIterator<T>>
 Matrix<T>::columnEntries(size_t index) const {
-  return {{*this, index}, {*this, index, rows()}};
+  return {{*this, index}, {*this, index, numRows()}};
 }
 
 template class Matrix<float>;
