@@ -136,6 +136,11 @@ Matrix<T>::columnEntries(size_t index) const {
   return {{*this, index}, {*this, index, numRows()}};
 }
 
+template <typename T>
+typename Matrix<T>::value_type Matrix<T>::valueAt(size_t i, size_t j) const {
+  return _matrix[i][j];
+}
+
 template class Matrix<float>;
 template class Matrix<double>;
 template class Matrix<int8_t>;

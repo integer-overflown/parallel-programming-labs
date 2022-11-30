@@ -137,6 +137,11 @@ class MatrixBase {
     return static_cast<const Impl *>(this)->numColumns();
   }
 
+  [[nodiscard]] auto value(size_t i, size_t j) const {
+    return static_cast<typename Impl::value_type>(
+        static_cast<const Impl *>(this)->valueAt(i, j));
+  }
+
   friend Impl operator+(const Impl &a, const Impl &b) {
     return a.add(b, std::execution::seq);
   }
@@ -158,7 +163,9 @@ class Matrix : public MatrixBase<Matrix<T>> {
   friend class MatrixColumnIterator;
   friend Base;
 
+  using value_type = T;
   using EntryGenerator = T (*)(ptrdiff_t, ptrdiff_t);
+
   Matrix(size_t rows, size_t cols, EntryGenerator entryGenerator = nullptr);
   Matrix(std::initializer_list<std::initializer_list<T>> init);
   const T &operator()(size_t row, size_t col) const;
@@ -184,6 +191,8 @@ class Matrix : public MatrixBase<Matrix<T>> {
   [[nodiscard]] size_t numRows() const;
 
   [[nodiscard]] size_t numColumns() const;
+
+  [[nodiscard]] value_type valueAt(size_t i, size_t j) const;
 
   std::vector<std::vector<T>> _matrix;
 };
