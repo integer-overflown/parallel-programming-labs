@@ -198,7 +198,7 @@ class Matrix : public MatrixBase<Matrix<T>> {
 };
 
 template <typename U>
-std::ostream &operator<<(std::ostream &out, const Matrix<U> &m) {
+inline std::ostream &operator<<(std::ostream &out, const Matrix<U> &m) {
   for (size_t i = 0; i < m.rows(); ++i) {
     for (size_t j = 0; j < m.cols(); ++j) {
       out << std::setw(5) << m(i, j) << ' ';
@@ -214,6 +214,52 @@ extern template class Matrix<int8_t>;
 extern template class Matrix<int16_t>;
 extern template class Matrix<int32_t>;
 extern template class Matrix<int64_t>;
+
+class BitMatrix : public MatrixBase<BitMatrix> {
+  using Self = BitMatrix;
+  using Base = MatrixBase<Self>;
+
+ public:
+  using value_type = bool;
+  using EntryGenerator = bool (*)(ptrdiff_t, ptrdiff_t);
+  friend Base;
+
+  BitMatrix(size_t rows, size_t cols, EntryGenerator entryGenerator = nullptr);
+  BitMatrix(std::initializer_list<std::initializer_list<bool>> init);
+
+  friend std::ostream &operator<<(std::ostream &out, const BitMatrix &m);
+
+ private:
+  std::vector<bool>::const_reference operator()(size_t i, size_t j) const;
+
+  std::vector<bool>::reference operator()(size_t i, size_t j);
+
+  [[nodiscard]] BitMatrix doMultiplySeq(const BitMatrix &other) const;
+
+  [[nodiscard]] BitMatrix doMultiplyPar(const BitMatrix &other) const;
+
+  [[nodiscard]] BitMatrix doAddSeq(const BitMatrix &other) const;
+
+  [[nodiscard]] BitMatrix doAddPar(const BitMatrix &other) const;
+
+  [[nodiscard]] size_t numRows() const;
+
+  [[nodiscard]] size_t numColumns() const;
+
+  [[nodiscard]] value_type valueAt(size_t i, size_t j) const;
+
+  std::vector<std::vector<bool>> _matrix;
+};
+
+inline std::ostream &operator<<(std::ostream &out, const BitMatrix &m) {
+  for (size_t i = 0; i < m.rows(); ++i) {
+    for (size_t j = 0; j < m.cols(); ++j) {
+      out << m.valueAt(i, j) << ' ';
+    }
+    out << '\n';
+  }
+  return out;
+}
 
 }  // namespace lab5
 

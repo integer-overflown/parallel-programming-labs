@@ -6,16 +6,12 @@
 
 namespace lab5 {
 
-template <typename T>
-Matrix<T>::Matrix(size_t rows, size_t cols, EntryGenerator entryGenerator) {
-  if (rows == 0 || cols == 0) {
-    throw std::invalid_argument("Matrix dimensions must be non-zero");
-  }
-
-  _matrix.resize(rows);
-
+namespace {
+template <typename T, typename EntryGenerator>
+void generate(std::vector<std::vector<T>> &matrix, size_t cols,
+              EntryGenerator entryGenerator) {
   if (entryGenerator) {
-    std::generate(_matrix.begin(), _matrix.end(),
+    std::generate(matrix.begin(), matrix.end(),
                   [=, rowNo = size_t(0)]() mutable -> std::vector<T> {
                     std::vector<T> row(cols);
                     std::generate(row.begin(), row.end(),
@@ -26,19 +22,37 @@ Matrix<T>::Matrix(size_t rows, size_t cols, EntryGenerator entryGenerator) {
                     return row;
                   });
   } else {
-    std::generate(_matrix.begin(), _matrix.end(),
+    std::generate(matrix.begin(), matrix.end(),
                   [cols]() { return std::vector<T>(cols); });
   }
 }
 
 template <typename T>
-Matrix<T>::Matrix(std::initializer_list<std::initializer_list<T>> init)
-    : _matrix(init.size()) {
+void from2DList(std::vector<std::vector<T>> &matrix,
+                std::initializer_list<std::initializer_list<T>> init) {
   std::for_each(init.begin(), init.end(),
-                [out = _matrix.begin()](std::initializer_list<T> row) mutable {
+                [out = matrix.begin()](std::initializer_list<T> row) mutable {
                   *out = row;
                   ++out;
                 });
+}
+
+}  // namespace
+
+template <typename T>
+Matrix<T>::Matrix(size_t rows, size_t cols, EntryGenerator entryGenerator)
+    : _matrix(rows) {
+  if (rows == 0 || cols == 0) {
+    throw std::invalid_argument("Matrix dimensions must be non-zero");
+  }
+
+  generate(_matrix, cols, entryGenerator);
+}
+
+template <typename T>
+Matrix<T>::Matrix(std::initializer_list<std::initializer_list<T>> init)
+    : _matrix(init.size()) {
+  from2DList(_matrix, init);
 }
 
 template <typename T>
@@ -147,5 +161,80 @@ template class Matrix<int8_t>;
 template class Matrix<int16_t>;
 template class Matrix<int32_t>;
 template class Matrix<int64_t>;
+
+BitMatrix::BitMatrix(size_t rows, size_t cols,
+                     BitMatrix::EntryGenerator entryGenerator) {
+  if (rows == 0 || cols == 0) {
+    throw std::invalid_argument("Matrix dimensions must be non-zero");
+  }
+  generate(_matrix, cols, entryGenerator);
+}
+
+BitMatrix::value_type BitMatrix::valueAt(size_t i, size_t j) const {
+  return _matrix[i][j];
+}
+
+std::vector<bool>::const_reference BitMatrix::operator()(size_t i,
+                                                         size_t j) const {
+  return _matrix[i][j];
+}
+
+std::vector<bool>::reference BitMatrix::operator()(size_t i, size_t j) {
+  return _matrix[i][j];
+}
+
+size_t BitMatrix::numRows() const { return _matrix.size(); }
+
+size_t BitMatrix::numColumns() const { return _matrix[0].size(); }
+
+BitMatrix::BitMatrix(std::initializer_list<std::initializer_list<bool>> init)
+    : _matrix(init.size()) {
+  from2DList(_matrix, init);
+}
+
+BitMatrix BitMatrix::doMultiplySeq(const BitMatrix &other) const {
+  if (numColumns() != other.numRows()) {
+    throw std::invalid_argument("matrices are of invalid dimensions");
+  }
+
+  BitMatrix result(numRows(), other.numColumns());
+
+  for (size_t i = 0; i < numRows(); ++i) {
+    for (size_t j = 0; j < other.numColumns(); ++j) {
+      bool total{};
+      for (size_t k = 0; k < numColumns(); ++k) {
+        total += valueAt(i, k) * other.valueAt(k, j);
+      }
+      result(i, j) = total;
+    }
+  }
+
+  return result;
+}
+
+BitMatrix BitMatrix::doMultiplyPar(const BitMatrix &other) const {
+  return BitMatrix(0, 0);
+}
+
+BitMatrix BitMatrix::doAddSeq(const BitMatrix &other) const {
+  if (!(numRows() == other.numRows() && numColumns() == other.cols())) {
+    throw std::invalid_argument(
+        "Only matrices of the same dimensions can be added");
+  }
+
+  BitMatrix result(*this);
+
+  for (size_t i = 0; i < numRows(); ++i) {
+    for (size_t j = 0; j < numColumns(); ++j) {
+      result(i, j) = result.valueAt(i, j) | other.valueAt(i, j);
+    }
+  }
+
+  return result;
+}
+
+BitMatrix BitMatrix::doAddPar(const BitMatrix &other) const {
+  return BitMatrix(0, 0);
+}
 
 }  // namespace lab5
