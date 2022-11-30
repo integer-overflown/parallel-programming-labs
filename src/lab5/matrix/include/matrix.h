@@ -106,13 +106,49 @@ class MatrixColumnIterator {
   size_t _column, _pos{};
 };
 
+template <typename Impl>
+class MatrixBase {
+ public:
+  [[nodiscard]] Impl multiply(const Impl &other,
+                              std::execution::sequenced_policy) const {
+    return static_cast<const Impl *>(this)->doMultiplySeq(other);
+  }
+
+  [[nodiscard]] Impl multiply(
+      const Impl &other, std::execution::parallel_unsequenced_policy) const {
+    return static_cast<const Impl *>(this)->doMultiplyPar(other);
+  }
+
+  [[nodiscard]] Impl add(const Impl &other,
+                         std::execution::sequenced_policy) const {
+    return static_cast<const Impl *>(this)->doAddSeq(other);
+  }
+
+  [[nodiscard]] Impl add(const Impl &other,
+                         std::execution::parallel_unsequenced_policy) const {
+    return static_cast<const Impl *>(this)->doAddPar(other);
+  }
+
+  friend Impl operator+(const Impl &a, const Impl &b) {
+    return a.add(b, std::execution::seq);
+  }
+
+  friend Impl operator*(const Impl &a, Impl &b) {
+    return a.multiply(b, std::execution::seq);
+  }
+};
+
 template <typename T>
-class Matrix {
+class Matrix : public MatrixBase<Matrix<T>> {
+  using Self = Matrix<T>;
+  using Base = MatrixBase<Self>;
+
  public:
   template <typename>
   friend class MatrixRowIterator;
   template <typename>
   friend class MatrixColumnIterator;
+  friend Base;
 
   using EntryGenerator = T (*)(ptrdiff_t, ptrdiff_t);
   Matrix(size_t rows, size_t cols, EntryGenerator entryGenerator = nullptr);
@@ -122,37 +158,23 @@ class Matrix {
   const T &operator()(size_t row, size_t col) const;
   T &operator()(size_t row, size_t col);
 
-  [[nodiscard]] Matrix multiply(const Matrix &other,
-                                std::execution::sequenced_policy) const;
-
-  [[nodiscard]] Matrix multiply(
-      const Matrix &other, std::execution::parallel_unsequenced_policy) const;
-
-  [[nodiscard]] Matrix add(const Matrix &other,
-                           std::execution::sequenced_policy) const;
-
-  [[nodiscard]] Matrix add(const Matrix &other,
-                           std::execution::parallel_unsequenced_policy) const;
-
   [[nodiscard]] std::pair<MatrixRowIterator<T>, MatrixRowIterator<T>>
   rowEntries(size_t index) const;
   [[nodiscard]] std::pair<MatrixColumnIterator<T>, MatrixColumnIterator<T>>
   columnEntries(size_t index) const;
 
   template <typename U>
-  friend Matrix operator+(const Matrix<U> &a, const Matrix<U> &b) {
-    return a.add(b, std::execution::seq);
-  }
-
-  template <typename U>
-  friend Matrix operator*(const Matrix<U> &a, const Matrix<U> &b) {
-    return a.multiply(b, std::execution::seq);
-  }
-
-  template <typename U>
   friend std::ostream &operator<<(std::ostream &out, const Matrix<U> &m);
 
  private:
+  [[nodiscard]] Matrix doMultiplySeq(const Matrix &other) const;
+
+  [[nodiscard]] Matrix doMultiplyPar(const Matrix &other) const;
+
+  [[nodiscard]] Matrix doAddSeq(const Matrix &other) const;
+
+  [[nodiscard]] Matrix doAddPar(const Matrix &other) const;
+
   std::vector<std::vector<T>> _matrix;
 };
 

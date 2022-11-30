@@ -63,8 +63,7 @@ T &Matrix<T>::operator()(size_t row, size_t col) {
 }
 
 template <typename T>
-Matrix<T> Matrix<T>::multiply(const Matrix<T> &other,
-                              std::execution::sequenced_policy) const {
+Matrix<T> Matrix<T>::doMultiplySeq(const Matrix<T> &other) const {
   if (cols() != other.rows()) {
     throw std::invalid_argument("matrices are of invalid dimensions");
   }
@@ -85,14 +84,12 @@ Matrix<T> Matrix<T>::multiply(const Matrix<T> &other,
 }
 
 template <typename T>
-Matrix<T> Matrix<T>::multiply(
-    const Matrix &other, std::execution::parallel_unsequenced_policy) const {
+Matrix<T> Matrix<T>::doMultiplyPar(const Matrix<T> &other) const {
   return Matrix(0, 0);
 }
 
 template <typename T>
-Matrix<T> Matrix<T>::add(const Matrix &other,
-                         std::execution::sequenced_policy) const {
+Matrix<T> Matrix<T>::doAddSeq(const Matrix &other) const {
   if (!(rows() == other.rows() && cols() == other.cols())) {
     throw std::invalid_argument(
         "Only matrices of the same dimensions can be added");
@@ -110,8 +107,7 @@ Matrix<T> Matrix<T>::add(const Matrix &other,
 }
 
 template <typename T>
-Matrix<T> Matrix<T>::add(const Matrix &other,
-                         std::execution::parallel_unsequenced_policy) const {
+Matrix<T> Matrix<T>::doAddPar(const Matrix &other) const {
   if (!(rows() == other.rows() && cols() == other.cols())) {
     throw std::invalid_argument(
         "Only matrices of the same dimensions can be added");
