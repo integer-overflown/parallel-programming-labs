@@ -268,6 +268,7 @@ void BitMatrixMultiplySeqSimd(const bool *lhs, const bool *rhs, bool *result,
 int main() {
   constexpr auto dim = 1000;
   constexpr auto size = 1000 * 1000;
+  constexpr auto marker = " ------------------- ";
 
   std::uniform_int_distribution dist(0, 1000);
   std::mt19937 generator(std::random_device{}());
@@ -291,6 +292,8 @@ int main() {
 
   auto bitResult = std::make_unique<bool[]>(size);
 
+  std::cout << marker << "ArrayMatrix: addition" << marker << '\n';
+
   {
     lab5::Measurement m("ArrayMatrix: sequential addition");
     lab5::MatrixAddSeq(arrA.get(), arrB.get(), arrResult.get(), dim);
@@ -302,20 +305,11 @@ int main() {
   }
 
   {
-    lab5::Measurement m("ArrayMatrix: sequential multiplication");
-    lab5::MatrixMultiplySeq(arrA.get(), arrB.get(), arrResult.get(), dim);
+    lab5::Measurement m("ArrayMatrix: SIMD-powered addition");
+    lab5::MatrixAddSeqSimd(arrA.get(), arrB.get(), arrResult.get(), dim);
   }
 
-  {
-    lab5::Measurement m(
-        "ArrayMatrix: sequential multiplication (optimized using SIMD)");
-    lab5::MatrixMultiplySeqSimd(arrA.get(), arrB.get(), arrResult.get(), dim);
-  }
-
-  {
-    lab5::Measurement m("ArrayMatrix: parallel multiplication");
-    lab5::MatrixMultiplyPar(arrA.get(), arrB.get(), arrResult.get(), dim);
-  }
+  std::cout << '\n' << marker << "BitMatrix: addition" << marker << '\n';
 
   {
     lab5::Measurement m("BitMatrix: sequential addition");
@@ -328,14 +322,33 @@ int main() {
   }
 
   {
-    lab5::Measurement m("BitMatrix: sequential multiplication");
-    lab5::BitMatrixMultiplySeq(bitA.get(), bitB.get(), bitResult.get(), dim);
+    lab5::Measurement m("BitMatrix: SIMD-powered addition");
+    lab5::BitMatrixAddSeqSimd(bitA.get(), bitB.get(), bitResult.get(), dim);
+  }
+
+  std::cout << '\n'
+            << marker << "ArrayMatrix: multiplication" << marker << '\n';
+
+  {
+    lab5::Measurement m("ArrayMatrix: sequential multiplication");
+    lab5::MatrixMultiplySeq(arrA.get(), arrB.get(), arrResult.get(), dim);
   }
 
   {
-    lab5::Measurement m("BitMatrix: optimized multiplication (using SIMD)");
-    lab5::BitMatrixMultiplySeqSimd(bitA.get(), bitB.get(), bitResult.get(),
-                                   dim);
+    lab5::Measurement m("ArrayMatrix: parallel multiplication");
+    lab5::MatrixMultiplyPar(arrA.get(), arrB.get(), arrResult.get(), dim);
+  }
+
+  {
+    lab5::Measurement m("ArrayMatrix: optimized multiplication (using SIMD)");
+    lab5::MatrixMultiplySeqSimd(arrA.get(), arrB.get(), arrResult.get(), dim);
+  }
+
+  std::cout << '\n' << marker << "BitMatrix: multiplication" << marker << '\n';
+
+  {
+    lab5::Measurement m("BitMatrix: sequential multiplication");
+    lab5::BitMatrixMultiplySeq(bitA.get(), bitB.get(), bitResult.get(), dim);
   }
 
   {
@@ -343,15 +356,9 @@ int main() {
     lab5::BitMatrixMultiplyPar(bitA.get(), bitB.get(), bitResult.get(), dim);
   }
 
-  std::cout << "\n\n----- SIMD commands ------\n\n";
-
   {
-    lab5::Measurement m("ArrayMatrix: SIMD-powered addition");
-    lab5::MatrixAddSeqSimd(arrA.get(), arrB.get(), arrResult.get(), dim);
-  }
-
-  {
-    lab5::Measurement m("BitMatrix: SIMD-powered addition");
-    lab5::BitMatrixAddSeqSimd(bitA.get(), bitB.get(), bitResult.get(), dim);
+    lab5::Measurement m("BitMatrix: optimized multiplication (using SIMD)");
+    lab5::BitMatrixMultiplySeqSimd(bitA.get(), bitB.get(), bitResult.get(),
+                                   dim);
   }
 }
