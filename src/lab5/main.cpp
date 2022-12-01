@@ -54,15 +54,15 @@ void MatrixAddSeq(const double *lhs, const double *rhs, double *result,
 
 void MatrixAddSeqSimd(const double *lhs, const double *rhs, double *result,
                       size_t dim) {
-  auto pA = reinterpret_cast<const __m256i *>(lhs);
-  auto pB = reinterpret_cast<const __m256i *>(rhs);
-  auto pC = reinterpret_cast<__m256i *>(result);
+  auto pA = reinterpret_cast<const __m256 *>(lhs);
+  auto pB = reinterpret_cast<const __m256 *>(rhs);
+  auto pC = reinterpret_cast<__m256 *>(result);
 
-  constexpr auto blockSize = sizeof(__m256i) / sizeof(result[0]);
+  constexpr auto blockSize = sizeof(__m256) / sizeof(double);
 
   for (int i = 0; i < dim / blockSize; ++i) {
     for (int j = 0; j < dim / blockSize; ++j) {
-      pC[i * j] = _mm256_or_si256(pA[i * j], pB[i * j]);
+      pC[i * j] = _mm256_add_ps(pA[i * j], pB[i * j]);
     }
   }
 }
@@ -111,6 +111,21 @@ void BitMatrixAddSeq(const bool *lhs, const bool *rhs, bool *result,
     for (long long j = 0; j < dim; ++j) {
       const long long index = i * dim + j;
       result[index] = lhs[index] | rhs[index];
+    }
+  }
+}
+
+void BitMatrixAddSeqSimd(const bool *lhs, const bool *rhs, bool *result,
+                         size_t dim) {
+  const auto pA = reinterpret_cast<const __m256i *>(lhs);
+  const auto pB = reinterpret_cast<const __m256i *>(rhs);
+  const auto pC = reinterpret_cast<__m256i *>(result);
+
+  constexpr auto blockSize = sizeof(__m256i) / sizeof(bool);
+
+  for (int i = 0; i < dim / blockSize; ++i) {
+    for (int j = 0; j < dim / blockSize; ++j) {
+      pC[i * j] = _mm256_or_si256(pA[i * j], pB[i * j]);
     }
   }
 }
@@ -226,5 +241,10 @@ int main() {
   {
     lab5::Measurement m("ArrayMatrix: SIMD-powered addition");
     lab5::MatrixAddSeqSimd(arrA.get(), arrB.get(), arrResult.get(), dim);
+  }
+
+  {
+    lab5::Measurement m("BitMatrix: SIMD-powered addition");
+    lab5::BitMatrixAddSeqSimd(bitA.get(), bitB.get(), bitResult.get(), dim);
   }
 }
