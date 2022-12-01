@@ -8,4 +8,4 @@ Checklist
 - [x] Lab 2
 - [ ] Lab 3
 - [x] Lab 4
-- [ ] Lab 5
+- [x] Lab 5
