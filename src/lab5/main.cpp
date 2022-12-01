@@ -68,6 +68,22 @@ void MatrixAddSeqSimd(const double *lhs, const double *rhs, double *result,
   }
 }
 
+void MatrixAddParSimd(const double *lhs, const double *rhs, double *result,
+                      size_t dim) {
+  auto pA = reinterpret_cast<const __m256 *>(lhs);
+  auto pB = reinterpret_cast<const __m256 *>(rhs);
+  auto pC = reinterpret_cast<__m256 *>(result);
+
+  constexpr auto blockSize = sizeof(__m256) / sizeof(double);
+
+#pragma omp parallel for
+  for (int i = 0; i < dim / blockSize; ++i) {
+    for (int j = 0; j < dim / blockSize; ++j) {
+      pC[i * j] = _mm256_add_ps(pA[i * j], pB[i * j]);
+    }
+  }
+}
+
 void MatrixAddPar(const double *lhs, const double *rhs, double *result,
                   size_t dim) {
 #pragma omp parallel for
@@ -124,6 +140,22 @@ void BitMatrixAddSeqSimd(const bool *lhs, const bool *rhs, bool *result,
 
   constexpr auto blockSize = sizeof(__m256i) / sizeof(bool);
 
+  for (int i = 0; i < dim / blockSize; ++i) {
+    for (int j = 0; j < dim / blockSize; ++j) {
+      pC[i * j] = _mm256_or_si256(pA[i * j], pB[i * j]);
+    }
+  }
+}
+
+void BitMatrixAddParSimd(const bool *lhs, const bool *rhs, bool *result,
+                         size_t dim) {
+  const auto pA = reinterpret_cast<const __m256i *>(lhs);
+  const auto pB = reinterpret_cast<const __m256i *>(rhs);
+  const auto pC = reinterpret_cast<__m256i *>(result);
+
+  constexpr auto blockSize = sizeof(__m256i) / sizeof(bool);
+
+#pragma omp parallel for
   for (int i = 0; i < dim / blockSize; ++i) {
     for (int j = 0; j < dim / blockSize; ++j) {
       pC[i * j] = _mm256_or_si256(pA[i * j], pB[i * j]);
@@ -196,7 +228,38 @@ void MatrixMultiplySeqSimd(const double *lhs, const double *rhs, double *result,
   constexpr auto blockSize = sizeof(__m256d) / sizeof(double);
   const auto wholeBlocks = dim / blockSize;
 
-#pragma omp parallel for
+  for (long long i = 0; i < dim; ++i) {
+    for (long long j = 0; j < dim; ++j) {
+      double total{};
+      __m256d blockTotal = _mm256_setzero_pd();
+
+      for (long long k = 0; k < wholeBlocks; ++k) {
+        blockTotal = _mm256_fmadd_pd(
+            _mm256_load_pd(&lhs[i * dim + k * blockSize]),
+            _mm256_load_pd(&transposed[j * dim + k * blockSize]), blockTotal);
+      }
+
+      for (size_t k = wholeBlocks * blockSize; k < dim; ++k) {
+        total += lhs[i * dim + k] * transposed[j * dim + k];
+      }
+
+      double v[4];
+      _mm256_store_pd(v, blockTotal);
+
+      result[i * dim + j] =
+          std::accumulate(std::begin(v), std::end(v), 0.0) + total;
+    }
+  }
+}
+
+void MatrixMultiplyParSimd(const double *lhs, const double *rhs, double *result,
+                           size_t dim) {
+  auto transposed = std::make_unique<double[]>(dim * dim);
+  MatrixTranspose(rhs, transposed.get(), dim);
+
+  constexpr auto blockSize = sizeof(__m256d) / sizeof(double);
+  const auto wholeBlocks = dim / blockSize;
+
   for (long long i = 0; i < dim; ++i) {
     for (long long j = 0; j < dim; ++j) {
       double total{};
@@ -222,6 +285,48 @@ void MatrixMultiplySeqSimd(const double *lhs, const double *rhs, double *result,
 }
 
 void BitMatrixMultiplySeqSimd(const bool *lhs, const bool *rhs, bool *result,
+                              size_t dim) {
+  auto transposed = std::make_unique<bool[]>(dim * dim);
+  MatrixTranspose(rhs, transposed.get(), dim);
+
+  constexpr auto blockSize = sizeof(__m256i) / sizeof(double);
+  const auto wholeBlocks = dim / blockSize;
+
+#pragma omp parallel for
+  for (long long i = 0; i < dim; ++i) {
+    for (long long j = 0; j < dim; ++j) {
+      int total{};
+      __m256i blockTotal = _mm256_setzero_si256();
+
+      for (long long k = 0; k < wholeBlocks; ++k) {
+        __m256i product = _mm256_and_si256(
+            *reinterpret_cast<const __m256i *>(&lhs[i * dim + k * blockSize]),
+            *reinterpret_cast<const __m256i *>(
+                &transposed[j * dim + k * blockSize]));
+        blockTotal = _mm256_add_epi64(blockTotal, product);
+      }
+
+      for (size_t k = wholeBlocks * blockSize; k < dim; ++k) {
+        total += lhs[i * dim + k] & transposed[j * dim + k];
+      }
+
+      union {
+        int64_t ints[4];
+        __m256i vec;
+      };
+
+      _mm256_store_si256(&vec, blockTotal);
+
+      result[i * dim + j] = std::accumulate(std::begin(ints), std::end(ints), 0,
+                                            [](int init, uint64_t val) {
+                                              return init + std::popcount(val);
+                                            }) &
+                            1 + (total & 1);
+    }
+  }
+}
+
+void BitMatrixMultiplyParSimd(const bool *lhs, const bool *rhs, bool *result,
                               size_t dim) {
   auto transposed = std::make_unique<bool[]>(dim * dim);
   MatrixTranspose(rhs, transposed.get(), dim);
@@ -305,8 +410,13 @@ int main() {
   }
 
   {
-    lab5::Measurement m("ArrayMatrix: SIMD-powered addition");
+    lab5::Measurement m("ArrayMatrix: SIMD-powered addition (sequential)");
     lab5::MatrixAddSeqSimd(arrA.get(), arrB.get(), arrResult.get(), dim);
+  }
+
+  {
+    lab5::Measurement m("ArrayMatrix: SIMD-powered addition (parallel)");
+    lab5::MatrixAddParSimd(arrA.get(), arrB.get(), arrResult.get(), dim);
   }
 
   std::cout << '\n' << marker << "BitMatrix: addition" << marker << '\n';
@@ -322,8 +432,13 @@ int main() {
   }
 
   {
-    lab5::Measurement m("BitMatrix: SIMD-powered addition");
+    lab5::Measurement m("BitMatrix: SIMD-powered addition (sequential)");
     lab5::BitMatrixAddSeqSimd(bitA.get(), bitB.get(), bitResult.get(), dim);
+  }
+
+  {
+    lab5::Measurement m("BitMatrix: SIMD-powered addition (parallel)");
+    lab5::BitMatrixAddParSimd(bitA.get(), bitB.get(), bitResult.get(), dim);
   }
 
   std::cout << '\n'
@@ -340,8 +455,13 @@ int main() {
   }
 
   {
-    lab5::Measurement m("ArrayMatrix: optimized multiplication (using SIMD)");
+    lab5::Measurement m("ArrayMatrix: sequential multiplication (using SIMD)");
     lab5::MatrixMultiplySeqSimd(arrA.get(), arrB.get(), arrResult.get(), dim);
+  }
+
+  {
+    lab5::Measurement m("ArrayMatrix: parallel multiplication (using SIMD)");
+    lab5::MatrixMultiplyParSimd(arrA.get(), arrB.get(), arrResult.get(), dim);
   }
 
   std::cout << '\n' << marker << "BitMatrix: multiplication" << marker << '\n';
@@ -357,8 +477,14 @@ int main() {
   }
 
   {
-    lab5::Measurement m("BitMatrix: optimized multiplication (using SIMD)");
+    lab5::Measurement m("BitMatrix: sequential multiplication (using SIMD)");
     lab5::BitMatrixMultiplySeqSimd(bitA.get(), bitB.get(), bitResult.get(),
+                                   dim);
+  }
+
+  {
+    lab5::Measurement m("BitMatrix: parallel multiplication (using SIMD)");
+    lab5::BitMatrixMultiplyParSimd(bitA.get(), bitB.get(), bitResult.get(),
                                    dim);
   }
 }
