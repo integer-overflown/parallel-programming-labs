@@ -1,5 +1,6 @@
 #include <intrin.h>
 
+#include <cassert>
 #include <chrono>
 #include <iostream>
 #include <memory>
@@ -168,6 +169,58 @@ void BitMatrixMultiplyPar(const bool *lhs, const bool *rhs, bool *result,
   }
 }
 
+template <typename T>
+void PrintMatrix(const T *matrix, size_t dim, std::streamsize pad = 5) {
+  for (size_t i = 0; i < dim; ++i) {
+    for (size_t j = 0; j < dim; ++j) {
+      std::cout << std::setw(pad) << matrix[i * dim + j] << ' ';
+    }
+    std::cout << '\n';
+  }
+}
+
+template <typename T>
+void MatrixTranspose(const T *data, T *result, const size_t dim) {
+  for (size_t i = 0; i < dim; ++i) {
+    for (size_t j = 0; j < dim; ++j) {
+      result[j * dim + i] = data[i * dim + j];
+    }
+  }
+}
+
+void MatrixMultiplySeqSimd(const double *lhs, const double *rhs, double *result,
+                           size_t dim) {
+  auto transposed = std::make_unique<double[]>(dim * dim);
+  MatrixTranspose(rhs, transposed.get(), dim);
+
+  constexpr auto blockSize = sizeof(__m256d) / sizeof(double);
+  const auto wholeBlocks = dim / blockSize;
+
+#pragma omp parallel for
+  for (long long i = 0; i < dim; ++i) {
+    for (long long j = 0; j < dim; ++j) {
+      double total{};
+      __m256d blockTotal = _mm256_setzero_pd();
+
+      for (long long k = 0; k < wholeBlocks; ++k) {
+        blockTotal = _mm256_fmadd_pd(
+            _mm256_load_pd(&lhs[i * dim + k * blockSize]),
+            _mm256_load_pd(&transposed[j * dim + k * blockSize]), blockTotal);
+      }
+
+      for (size_t k = wholeBlocks * blockSize; k < dim; ++k) {
+        total += lhs[i * dim + k] * transposed[j * dim + k];
+      }
+
+      double v[4];
+      _mm256_store_pd(v, blockTotal);
+
+      result[i * dim + j] =
+          std::accumulate(std::begin(v), std::end(v), 0.0) + total;
+    }
+  }
+}
+
 }  // namespace lab5
 
 int main() {
@@ -209,6 +262,12 @@ int main() {
   {
     lab5::Measurement m("ArrayMatrix: sequential multiplication");
     lab5::MatrixMultiplySeq(arrA.get(), arrB.get(), arrResult.get(), dim);
+  }
+
+  {
+    lab5::Measurement m(
+        "ArrayMatrix: sequential multiplication (optimized using SIMD)");
+    lab5::MatrixMultiplySeqSimd(arrA.get(), arrB.get(), arrResult.get(), dim);
   }
 
   {
