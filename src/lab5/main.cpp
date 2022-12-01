@@ -221,6 +221,48 @@ void MatrixMultiplySeqSimd(const double *lhs, const double *rhs, double *result,
   }
 }
 
+void BitMatrixMultiplySeqSimd(const bool *lhs, const bool *rhs, bool *result,
+                              size_t dim) {
+  auto transposed = std::make_unique<bool[]>(dim * dim);
+  MatrixTranspose(rhs, transposed.get(), dim);
+
+  constexpr auto blockSize = sizeof(__m256i) / sizeof(double);
+  const auto wholeBlocks = dim / blockSize;
+
+#pragma omp parallel for
+  for (long long i = 0; i < dim; ++i) {
+    for (long long j = 0; j < dim; ++j) {
+      int total{};
+      __m256i blockTotal = _mm256_setzero_si256();
+
+      for (long long k = 0; k < wholeBlocks; ++k) {
+        __m256i product = _mm256_and_si256(
+            *reinterpret_cast<const __m256i *>(&lhs[i * dim + k * blockSize]),
+            *reinterpret_cast<const __m256i *>(
+                &transposed[j * dim + k * blockSize]));
+        blockTotal = _mm256_add_epi64(blockTotal, product);
+      }
+
+      for (size_t k = wholeBlocks * blockSize; k < dim; ++k) {
+        total += lhs[i * dim + k] & transposed[j * dim + k];
+      }
+
+      union {
+        int64_t ints[4];
+        __m256i vec;
+      };
+
+      _mm256_store_si256(&vec, blockTotal);
+
+      result[i * dim + j] = std::accumulate(std::begin(ints), std::end(ints), 0,
+                                            [](int init, uint64_t val) {
+                                              return init + std::popcount(val);
+                                            }) &
+                            1 + (total & 1);
+    }
+  }
+}
+
 }  // namespace lab5
 
 int main() {
@@ -288,6 +330,12 @@ int main() {
   {
     lab5::Measurement m("BitMatrix: sequential multiplication");
     lab5::BitMatrixMultiplySeq(bitA.get(), bitB.get(), bitResult.get(), dim);
+  }
+
+  {
+    lab5::Measurement m("BitMatrix: optimized multiplication (using SIMD)");
+    lab5::BitMatrixMultiplySeqSimd(bitA.get(), bitB.get(), bitResult.get(),
+                                   dim);
   }
 
   {
