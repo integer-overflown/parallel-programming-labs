@@ -163,7 +163,8 @@ template class Matrix<int32_t>;
 template class Matrix<int64_t>;
 
 BitMatrix::BitMatrix(size_t rows, size_t cols,
-                     BitMatrix::EntryGenerator entryGenerator) {
+                     BitMatrix::EntryGenerator entryGenerator)
+    : _matrix(rows) {
   if (rows == 0 || cols == 0) {
     throw std::invalid_argument("Matrix dimensions must be non-zero");
   }
@@ -234,7 +235,24 @@ BitMatrix BitMatrix::doAddSeq(const BitMatrix &other) const {
 }
 
 BitMatrix BitMatrix::doAddPar(const BitMatrix &other) const {
-  return BitMatrix(0, 0);
+  if (!(numRows() == other.numRows() && numColumns() == other.cols())) {
+    throw std::invalid_argument(
+        "Only matrices of the same dimensions can be added");
+  }
+
+  BitMatrix result(*this);
+
+  const size_t rows = numRows();
+  const size_t cols = numColumns();
+
+#pragma omp parallel for
+  for (int i = 0; i < rows; ++i) {
+    for (int j = 0; j < cols; ++j) {
+      result(i, j) = result.valueAt(i, j) | other.valueAt(i, j);
+    }
+  }
+
+  return result;
 }
 
 }  // namespace lab5
