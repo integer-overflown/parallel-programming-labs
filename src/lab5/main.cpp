@@ -260,6 +260,7 @@ void MatrixMultiplyParSimd(const double *lhs, const double *rhs, double *result,
   constexpr auto blockSize = sizeof(__m256d) / sizeof(double);
   const auto wholeBlocks = dim / blockSize;
 
+#pragma omp parallel for
   for (long long i = 0; i < dim; ++i) {
     for (long long j = 0; j < dim; ++j) {
       double total{};
